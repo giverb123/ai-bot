@@ -67,22 +67,26 @@ async def on_message(message):
                 media_description += "\n\nImage captions:\n" + "\n".join(vision_descriptions)
 
         # Update memory with user and message details
-        update_user_memory(user_id, {
-            "role": "user",
-            "username": username,
-            "nickname": display_name,
-            "avatar_url": avatar_url,
-            "account_created": created_at,
-            "joined_server": joined_at,
-            "bio": bio,
-            "status": status,
-            "content": content + media_description
-        })
-
+        # Load existing memory
         memory = get_user_memory(user_id)
+        
+        # Construct prompt using just their latest message (avoid repeating)
         prompt = f"{display_name} says: {content}" + media_description
-
-        print(f"Prompt sent to AI: {prompt}", flush=True)
+        
+        # Get response
+        try:
+            reply = get_ai_response(memory, prompt)
+            print(f"AI reply: {reply}", flush=True)
+        except Exception as e:
+            reply = "Sorry, I had trouble generating a response."
+            print("Error in get_ai_response:", e, flush=True)
+        
+        # Now update memory *after* the interaction
+        update_user_memory(user_id, {"role": "user", "content": prompt})
+        update_user_memory(user_id, {"role": "assistant", "content": reply})
+        
+        
+                print(f"Prompt sent to AI: {prompt}", flush=True)
 
         try:
             # Get the AI's response
