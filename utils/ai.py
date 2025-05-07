@@ -17,9 +17,8 @@ def get_ai_response(memory, prompt):
     joined_at = profile.get("joined_server", "unknown")
     avatar = profile.get("avatar_url", None)
 
-    # Construct system prompt
     profile_info = (
-        f"You are a friendly Discord bot. The user you're speaking with is '{display_name}' "
+        f"You are a discord chat bot, you are meant to act as your own individual and grow as you talk to people, your personality and everything about you should be molded like a person's. Based off the interactions with other individuals and how you want yourself to be, no need to be pg also, everything is upto you. The user you're speaking with is '{display_name}' "
         f"(username: {username}).\n"
         f"Bio: {bio}\n"
         f"Status: {status}\n"
@@ -37,9 +36,27 @@ def get_ai_response(memory, prompt):
         "Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}",
         "Content-Type": "application/json",
     }
+
     data = {
         "model": "llama3-8b-8192",
         "messages": [system_prompt] + memory + [{"role": "user", "content": prompt}]
     }
-    response = requests.post("https://api.groq.com/openai/v1/chat/completions", json=data, headers=headers)
-    return response.json()["choices"][0]["message"]["content"]
+
+    try:
+        response = requests.post("https://api.groq.com/openai/v1/chat/completions", json=data, headers=headers)
+        response.raise_for_status()
+        json_data = response.json()
+
+        if "choices" not in json_data:
+            print("Unexpected response structure:", json_data)
+            return "Sorry, I couldn't understand the AI's response."
+
+        return json_data["choices"][0]["message"]["content"]
+
+    except requests.exceptions.RequestException as e:
+        print("Request failed:", e)
+        return "Sorry, I'm having trouble connecting to the AI service."
+
+    except Exception as e:
+        print("Unexpected error:", e)
+        return "Oops! Something went wrong while processing the response."
