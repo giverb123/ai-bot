@@ -27,7 +27,7 @@ async def on_message(message):
     user_id = str(message.author.id)
     content = message.content
 
-    update_user_memory(user_id, {"role": "user", "content": content})
+    update_user_memory(user_id, {"role": "user", "name": message.author.name, "content": content})
     memory = get_user_memory(user_id)
     reply = get_ai_response(memory, content)
     update_user_memory(user_id, {"role": "assistant", "content": reply})
