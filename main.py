@@ -12,7 +12,6 @@ import threading
 
 # Load environment variables
 load_dotenv()
-
 TTS_MODEL = os.getenv("TTS_MODEL", "bark")
 
 # Setup Discord bot
@@ -25,9 +24,12 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    await bot.process_commands(message)
-
     if message.author.bot:
+        return
+
+    # ❗ Skip messages that are commands (starts with the prefix)
+    if message.content.startswith(bot.command_prefix):
+        await bot.process_commands(message)
         return
 
     try:
@@ -35,15 +37,16 @@ async def on_message(message):
 
         user = message.author
         user_id = str(user.id)
+        username = user.name
         display_name = user.display_name
-        content = message.content
-
+        avatar_url = user.avatar.url if user.avatar else None
         created_at = user.created_at.strftime("%Y-%m-%d")
         joined_at = message.guild.get_member(user.id).joined_at.strftime("%Y-%m-%d") if message.guild else "Unknown"
         bio = getattr(user, "bio", "Unavailable")
         status = str(user.status)
+        content = message.content
 
-        # Media detection
+        # Detect media (images, GIFs, videos, etc.)
         media_urls = [
             word for word in content.split()
             if word.startswith("http") and any(ext in word for ext in ['.gif', '.jpg', '.jpeg', '.png', '.mp4', '.webm'])
@@ -63,11 +66,9 @@ async def on_message(message):
             if vision_descriptions:
                 media_description += "\n\nImage captions:\n" + "\n".join(vision_descriptions)
 
-        # Load memory and construct prompt
         memory = get_user_memory(user_id)
         prompt = f"{display_name} says: {content}" + media_description
 
-        # Call AI once
         try:
             reply = get_ai_response(memory, prompt)
             print(f"AI reply: {reply}", flush=True)
@@ -75,13 +76,10 @@ async def on_message(message):
             reply = "Sorry, I had trouble generating a response."
             print("Error in get_ai_response:", e, flush=True)
 
-        print(f"Prompt sent to AI: {prompt}", flush=True)
-
-        # Update memory
         update_user_memory(user_id, {"role": "user", "content": prompt})
         update_user_memory(user_id, {"role": "assistant", "content": reply})
 
-        # Send reply
+        print(f"Prompt sent to AI: {prompt}", flush=True)
         await message.channel.send(reply)
 
         # Save GIFs
@@ -91,7 +89,7 @@ async def on_message(message):
             if attachment.content_type and 'gif' in attachment.content_type:
                 save_gif_for_user(user_id, attachment.url)
 
-        # TTS generation
+        # TTS
         audio_data = generate_tts(reply, model=TTS_MODEL)
         if audio_data:
             with open("tts_output.mp3", "wb") as f:
@@ -115,7 +113,7 @@ async def nick(ctx, *, new_name):
 async def test(ctx):
     await ctx.send("I'm alive and responding!")
 
-# Flask app for Render uptime
+# Web server setup for Render
 app = Flask(__name__)
 
 @app.route('/')
@@ -128,5 +126,4 @@ def run_web():
 
 threading.Thread(target=run_web).start()
 
-# Run bot
 bot.run(os.getenv("DISCORD_TOKEN"))
