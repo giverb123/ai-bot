@@ -1,0 +1,6 @@
+discord.py
+aiohttp
+requests
+tinydb
+python-dotenv
+pyttsx3
