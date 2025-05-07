@@ -26,6 +26,17 @@ async def on_message(message):
     reply = get_ai_response(memory, content)
     update_user_memory(user_id, {"role": "assistant", "content": reply})
     await message.channel.send(reply)
+    # Save any linked GIFs or attached .gif files
+from utils.media import save_gif_for_user, extract_gif_url
+
+user_id = str(message.author.id)
+if gif_url := extract_gif_url(message.content):
+    save_gif_for_user(user_id, gif_url)
+
+for attachment in message.attachments:
+    if attachment.content_type and 'gif' in attachment.content_type:
+        save_gif_for_user(user_id, attachment.url)
+
 
 @bot.command()
 async def gif(ctx, *, query):
