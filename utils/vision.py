@@ -1,7 +1,7 @@
 import requests
 import os
 
-HF_TOKEN = os.getenv("HUGGINGFACE_TOKEN")  # Add this to your .env
+HF_TOKEN = os.getenv("HUGGINGFACE_TOKEN")
 
 def describe_image(image_url):
     try:
@@ -13,8 +13,7 @@ def describe_image(image_url):
         if response.status_code == 200:
             result = response.json()
             if isinstance(result, list) and result:
-                return result[0].get("generated_text", "I see something, but can't describe it well.")
-        else:
-            return f"[Vision Error {response.status_code}]"
+                return result[0].get("generated_text", "No description.")
+        return f"[Vision Error {response.status_code}]"
     except Exception as e:
         return f"[Vision failed: {str(e)}]"
