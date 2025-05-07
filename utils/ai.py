@@ -1,13 +1,10 @@
 import os
 import requests
-import json  # Added for pretty-printing
+import json
 
 def get_ai_response(memory, prompt):
-    profile = {}
-    for m in memory:
-        if m.get("role") == "user":
-            profile.update(m)
-            break
+    # Extract the first "user" role memory to build the profile
+    profile = next((m for m in memory if m.get("role") == "user"), {})
 
     display_name = profile.get("nickname") or profile.get("username", "user")
     username = profile.get("username", "unknown")
@@ -34,9 +31,18 @@ def get_ai_response(memory, prompt):
         "Content-Type": "application/json",
     }
 
+    # Sanitize memory: only keep 'role' and 'content'
+    filtered_memory = []
+    for m in memory:
+        if m.get("role") in ["user", "assistant"] and "content" in m:
+            filtered_memory.append({
+                "role": m["role"],
+                "content": m["content"]
+            })
+
     data = {
         "model": "llama3-8b-8192",
-        "messages": [system_prompt] + memory + [{"role": "user", "content": prompt}]
+        "messages": [system_prompt] + filtered_memory + [{"role": "user", "content": prompt}]
     }
 
     # DEBUG: print formatted payload
