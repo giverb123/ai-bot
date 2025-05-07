@@ -24,18 +24,56 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    user_id = str(message.author.id)
+    user = message.author
+    user_id = str(user.id)
+    username = user.name
+    display_name = user.display_name
+    avatar_url = user.avatar.url if user.avatar else None
+    created_at = user.created_at.strftime("%Y-%m-%d")
+    joined_at = message.guild.get_member(user.id).joined_at.strftime("%Y-%m-%d") if message.guild else "Unknown"
+    bio = getattr(user, "bio", "Unavailable")  # bio is only accessible in user profile, not always available
+    status = str(user.status)
+
     content = message.content
 
-    update_user_memory(user_id, {"role": "user", "name": message.author.name, "content": content})
+    # Detect media
+    media_urls = []
+    for word in content.split():
+        if word.startswith("http") and any(ext in word for ext in ['.gif', '.jpg', '.jpeg', '.png', '.mp4', '.webm']):
+            media_urls.append(word)
+
+    for attachment in message.attachments:
+        if attachment.content_type and any(mt in attachment.content_type for mt in ['gif', 'image', 'video']):
+            media_urls.append(attachment.url)
+
+    # Describe media
+    media_description = ""
+    if media_urls:
+        media_description = "\n\nMedia shared:\n" + "\n".join(media_urls)
+
+    # Update memory
+    update_user_memory(user_id, {
+        "role": "user",
+        "username": username,
+        "nickname": display_name,
+        "avatar_url": avatar_url,
+        "account_created": created_at,
+        "joined_server": joined_at,
+        "bio": bio,
+        "status": status,
+        "content": content + media_description
+    })
+
     memory = get_user_memory(user_id)
-    reply = get_ai_response(memory, content)
+    prompt = f"{display_name} says: {content}" + (media_description if media_description else "")
+    reply = get_ai_response(memory, prompt)
+
     update_user_memory(user_id, {"role": "assistant", "content": reply})
     await message.channel.send(reply)
 
+    # Save GIFs
     if gif_url := extract_gif_url(content):
         save_gif_for_user(user_id, gif_url)
-
     for attachment in message.attachments:
         if attachment.content_type and 'gif' in attachment.content_type:
             save_gif_for_user(user_id, attachment.url)
