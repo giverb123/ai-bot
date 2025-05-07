@@ -1,5 +1,6 @@
 import os
 import requests
+import json  # Added for pretty-printing
 
 def get_ai_response(memory, prompt):
     profile = {}
@@ -34,9 +35,13 @@ def get_ai_response(memory, prompt):
     }
 
     data = {
-        "model": "llama3-8b-8192",  # Confirm supported model at https://console.groq.com/docs
+        "model": "llama3-8b-8192",
         "messages": [system_prompt] + memory + [{"role": "user", "content": prompt}]
     }
+
+    # DEBUG: print formatted payload
+    print("\n== AI Request Payload ==")
+    print(json.dumps(data, indent=2))
 
     try:
         response = requests.post(
