@@ -2,16 +2,35 @@ import os
 import requests
 
 def get_ai_response(memory, prompt):
-    # Try to extract a username from memory
-    user_name = "user"
+    # Extract user profile details from memory
+    profile = {}
     for m in memory:
-        if m.get("role") == "user" and "name" in m:
-            user_name = m["name"]
+        if m.get("role") == "user":
+            profile.update(m)
             break
+
+    display_name = profile.get("nickname") or profile.get("username", "user")
+    username = profile.get("username", "unknown")
+    bio = profile.get("bio", "Not provided")
+    status = profile.get("status", "unknown")
+    created_at = profile.get("account_created", "unknown")
+    joined_at = profile.get("joined_server", "unknown")
+    avatar = profile.get("avatar_url", None)
+
+    # Construct system prompt
+    profile_info = (
+        f"You are a friendly Discord bot. The user you're speaking with is '{display_name}' "
+        f"(username: {username}).\n"
+        f"Bio: {bio}\n"
+        f"Status: {status}\n"
+        f"Account Created: {created_at}\n"
+        f"Joined Server: {joined_at}\n"
+        f"{'Their avatar is at ' + avatar if avatar else ''}"
+    )
 
     system_prompt = {
         "role": "system",
-        "content": f"You are a helpful, friendly Discord bot. The user you are speaking to is named {user_name}. If they ask who they are or what their username is, you should be able to answer based on that."
+        "content": profile_info
     }
 
     headers = {
