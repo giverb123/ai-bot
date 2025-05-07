@@ -5,13 +5,13 @@ from dotenv import load_dotenv
 from utils.memory import get_user_memory, update_user_memory
 from utils.ai import get_ai_response
 from utils.media import get_gif, save_gif_for_user, extract_gif_url
+from utils.vision import describe_image
 from flask import Flask
 import threading
 
 # Load environment variables
 load_dotenv()
 
-# Setup Discord bot
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -21,7 +21,7 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    await bot.process_commands(message)  # Ensure commands still work
+    await bot.process_commands(message)  # Allow commands to be processed
 
     if message.author.bot:
         return
@@ -49,7 +49,16 @@ async def on_message(message):
             if attachment.content_type and any(mt in attachment.content_type for mt in ['gif', 'image', 'video']):
                 media_urls.append(attachment.url)
 
-        media_description = "\n\nMedia shared:\n" + "\n".join(media_urls) if media_urls else ""
+        media_description = ""
+        if media_urls:
+            media_description += "\n\nMedia shared:\n" + "\n".join(media_urls)
+
+            vision_descriptions = []
+            for url in media_urls:
+                vision = describe_image(url)
+                vision_descriptions.append(f"{url}: {vision}")
+            if vision_descriptions:
+                media_description += "\n\nImage captions:\n" + "\n".join(vision_descriptions)
 
         # Update memory
         update_user_memory(user_id, {
