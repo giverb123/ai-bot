@@ -4,3 +4,4 @@ requests
 tinydb
 python-dotenv
 pyttsx3
+Flask
