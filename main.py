@@ -6,15 +6,14 @@ from utils.memory import get_user_memory, update_user_memory
 from utils.ai import get_ai_response
 from utils.media import get_gif, save_gif_for_user, extract_gif_url
 from utils.vision import describe_image
-from utils.tts import generate_tts  # Import the TTS module
+from utils.tts import generate_tts
 from flask import Flask
 import threading
 
 # Load environment variables
 load_dotenv()
 
-# Load the TTS model choice from environment
-TTS_MODEL = os.getenv("TTS_MODEL", "bark")  # Default to 'bark', switchable to 'tortoise'
+TTS_MODEL = os.getenv("TTS_MODEL", "bark")
 
 # Setup Discord bot
 intents = discord.Intents.all()
@@ -26,7 +25,7 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    await bot.process_commands(message)  # Allow commands to be processed
+    await bot.process_commands(message)
 
     if message.author.bot:
         return
@@ -36,16 +35,15 @@ async def on_message(message):
 
         user = message.author
         user_id = str(user.id)
-        username = user.name
         display_name = user.display_name
-        avatar_url = user.avatar.url if user.avatar else None
+        content = message.content
+
         created_at = user.created_at.strftime("%Y-%m-%d")
         joined_at = message.guild.get_member(user.id).joined_at.strftime("%Y-%m-%d") if message.guild else "Unknown"
         bio = getattr(user, "bio", "Unavailable")
         status = str(user.status)
-        content = message.content
 
-        # Detect media (images, GIFs, videos, etc.)
+        # Media detection
         media_urls = [
             word for word in content.split()
             if word.startswith("http") and any(ext in word for ext in ['.gif', '.jpg', '.jpeg', '.png', '.mp4', '.webm'])
@@ -58,7 +56,6 @@ async def on_message(message):
         if media_urls:
             media_description += "\n\nMedia shared:\n" + "\n".join(media_urls)
 
-            # Generate image captions using vision model
             vision_descriptions = []
             for url in media_urls:
                 vision = describe_image(url)
@@ -66,47 +63,35 @@ async def on_message(message):
             if vision_descriptions:
                 media_description += "\n\nImage captions:\n" + "\n".join(vision_descriptions)
 
-        # Update memory with user and message details
-        # Load existing memory
+        # Load memory and construct prompt
         memory = get_user_memory(user_id)
-        
-        # Construct prompt using just their latest message (avoid repeating)
         prompt = f"{display_name} says: {content}" + media_description
-        
-        # Get response
+
+        # Call AI once
         try:
             reply = get_ai_response(memory, prompt)
             print(f"AI reply: {reply}", flush=True)
         except Exception as e:
             reply = "Sorry, I had trouble generating a response."
             print("Error in get_ai_response:", e, flush=True)
-        
-        # Now update memory *after* the interaction
-        update_user_memory(user_id, {"role": "user", "content": prompt})
-        update_user_memory(user_id, {"role": "assistant", "content": reply})
-        
-        
+
         print(f"Prompt sent to AI: {prompt}", flush=True)
 
-        try:
-            # Get the AI's response
-            reply = get_ai_response(memory, prompt)
-            print(f"AI reply: {reply}", flush=True)
-        except Exception as e:
-            reply = "Sorry, I had trouble generating a response."
-            print("Error in get_ai_response:", e, flush=True)
-
+        # Update memory
+        update_user_memory(user_id, {"role": "user", "content": prompt})
         update_user_memory(user_id, {"role": "assistant", "content": reply})
+
+        # Send reply
         await message.channel.send(reply)
 
-        # Save GIFs (if any)
+        # Save GIFs
         if gif_url := extract_gif_url(content):
             save_gif_for_user(user_id, gif_url)
         for attachment in message.attachments:
             if attachment.content_type and 'gif' in attachment.content_type:
                 save_gif_for_user(user_id, attachment.url)
 
-        # Generate TTS response
+        # TTS generation
         audio_data = generate_tts(reply, model=TTS_MODEL)
         if audio_data:
             with open("tts_output.mp3", "wb") as f:
@@ -130,7 +115,7 @@ async def nick(ctx, *, new_name):
 async def test(ctx):
     await ctx.send("I'm alive and responding!")
 
-# Web server setup for Render
+# Flask app for Render uptime
 app = Flask(__name__)
 
 @app.route('/')
@@ -143,5 +128,5 @@ def run_web():
 
 threading.Thread(target=run_web).start()
 
-# Start the Discord bot
+# Run bot
 bot.run(os.getenv("DISCORD_TOKEN"))
