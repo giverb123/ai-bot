@@ -86,7 +86,7 @@ async def on_message(message):
         update_user_memory(user_id, {"role": "assistant", "content": reply})
         
         
-                print(f"Prompt sent to AI: {prompt}", flush=True)
+            print(f"Prompt sent to AI: {prompt}", flush=True)
 
         try:
             # Get the AI's response
