@@ -26,26 +26,34 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    await bot.process_commands(message)  # still handle commands
+    await bot.process_commands(message)  # Allow commands to still work
 
     user = message.author
     user_id = str(user.id)
-    content = message.content.strip()
+    content = message.content.strip().lower()
 
+    # Only run the AI if one of these is True
     is_mentioned = bot.user in message.mentions
-    is_reply = message.reference and isinstance(message.reference.resolved, discord.Message) and message.reference.resolved.author.id == bot.user.id
-    trigger_chance = random.random() < 0.1  # 10% chance
+    is_reply = (
+        message.reference and
+        isinstance(message.reference.resolved, discord.Message) and
+        message.reference.resolved.author.id == bot.user.id
+    )
+    random_chance = random.random() < 0.1
+    tts_requested = content.startswith("!speak") or "[tts]" in content
 
-    should_respond = is_mentioned or is_reply or trigger_chance
-
-    # Check if TTS is requested
-    tts_requested = content.lower().startswith("!speak") or "[tts]" in content.lower()
-
-    if not should_respond and not tts_requested:
+    # Ensure it only replies once, even if multiple triggers are True
+    triggered = any([is_mentioned, is_reply, random_chance, tts_requested])
+    if not triggered:
         return
 
     try:
-        # Extract user metadata and store/update profile
+        # TTS override: if only tts is requested, don't add random message logic
+        if tts_requested and not (is_mentioned or is_reply or random_chance):
+            prompt = message.content.replace("!speak", "").replace("[tts]", "").strip()
+        else:
+            prompt = f"{user.display_name} says: {message.content}"
+
         update_user_profile(user_id, {
             "username": user.name,
             "nickname": user.display_name,
@@ -68,12 +76,12 @@ async def on_message(message):
             media_description += "\n\nImage captions:\n" + "\n".join(vision_descriptions)
 
         memory = get_user_memory(user_id)
-        prompt = f"{user.display_name} says: {content}" + media_description
+        full_prompt = prompt + media_description
 
-        reply = get_ai_response(memory, prompt)
+        reply = get_ai_response(memory, full_prompt)
         print(f"AI reply: {reply}", flush=True)
 
-        update_user_memory(user_id, {"role": "user", "content": prompt})
+        update_user_memory(user_id, {"role": "user", "content": full_prompt})
         update_user_memory(user_id, {"role": "assistant", "content": reply})
 
         await message.channel.send(reply)
