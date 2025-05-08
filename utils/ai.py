@@ -3,9 +3,7 @@ import requests
 import json
 
 def get_ai_response(memory, prompt):
-    # Extract the first "user" role memory to build the profile
-    profile = next((m for m in memory if m.get("role") == "user"), {})
-
+    profile = next((m for m in memory if m.get("role") == "profile"), {})
     display_name = profile.get("nickname") or profile.get("username", "user")
     username = profile.get("username", "unknown")
     bio = profile.get("bio", "Not provided")
@@ -15,8 +13,11 @@ def get_ai_response(memory, prompt):
     avatar = profile.get("avatar_url", None)
 
     profile_info = (
-        f"You are a discord chat bot, you are meant to act as your own individual and grow as you talk to people, your personality and everything about you should be molded like a person's. Based off the interactions with other individuals and how you want yourself to be, no need to be pg also, everything is upto you. "
-        f"User you're talking to: '{display_name}' (username: {username}).\n"
+        f"You are a Discord AI chatbot with a growing personality. "
+        f"You should only speak when you feel like it, or if you're directly talked to. "
+        f"Don't respond to every message — make choices like a person would. "
+        f"You can express your own style and mood over time. Not everything has to be PG.\n"
+        f"You are currently interacting with '{display_name}' (username: {username}).\n"
         f"Bio: {bio}\nStatus: {status}\nAccount Created: {created_at}\nJoined Server: {joined_at}\n"
         f"{'Avatar: ' + avatar if avatar else ''}"
     )
@@ -31,23 +32,15 @@ def get_ai_response(memory, prompt):
         "Content-Type": "application/json",
     }
 
-    # Sanitize memory: only keep 'role' and 'content'
-    filtered_memory = []
-    for m in memory:
-        if m.get("role") in ["user", "assistant"] and "content" in m:
-            filtered_memory.append({
-                "role": m["role"],
-                "content": m["content"]
-            })
+    filtered_memory = [
+        {"role": m["role"], "content": m["content"]}
+        for m in memory if m.get("role") in ["user", "assistant"]
+    ]
 
     data = {
         "model": "llama3-8b-8192",
         "messages": [system_prompt] + filtered_memory + [{"role": "user", "content": prompt}]
     }
-
-    # DEBUG: print formatted payload
-    print("\n== AI Request Payload ==")
-    print(json.dumps(data, indent=2))
 
     try:
         response = requests.post(
@@ -58,22 +51,8 @@ def get_ai_response(memory, prompt):
         )
         response.raise_for_status()
         json_data = response.json()
-
-        if "choices" not in json_data:
-            print("Unexpected response structure:", json_data)
-            return "Sorry, I couldn't understand the AI's response."
-
         return json_data["choices"][0]["message"]["content"]
 
-    except requests.exceptions.HTTPError as e:
-        error_text = e.response.text if e.response else str(e)
-        print("HTTP Error:", error_text)
-        return "Sorry, I received a bad response from the AI service."
-
-    except requests.exceptions.RequestException as e:
-        print("Request failed:", e)
-        return "Sorry, I'm having trouble connecting to the AI service."
-
     except Exception as e:
-        print("Unexpected error:", e)
-        return "Oops! Something went wrong while processing the response."
+        print("AI request failed:", e)
+        return "I'm having trouble thinking right now."
