@@ -48,15 +48,16 @@ async def on_message(message):
         isinstance(message.reference.resolved, discord.Message) and
         message.reference.resolved.author.id == bot.user.id
     )
+    is_convo_context = message.channel.last_message and message.channel.last_message.author.id == bot.user.id
     random_chance = random.random() < 0.075  # 7.5% random interjection
     tts_requested = content.startswith("!speak") or "[tts]" in content
 
-    triggered = any([is_mentioned, is_reply, random_chance, tts_requested])
+    triggered = any([is_mentioned, is_reply, is_convo_context, random_chance, tts_requested])
     if not triggered:
         return
 
     try:
-        if tts_requested and not (is_mentioned or is_reply or random_chance):
+        if tts_requested and not (is_mentioned or is_reply or random_chance or is_convo_context):
             prompt = message.content.replace("!speak", "").replace("[tts]", "").strip()
         else:
             prompt = f"{user.display_name} says: {message.content}"
