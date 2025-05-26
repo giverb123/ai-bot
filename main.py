@@ -17,6 +17,16 @@ TTS_MODEL = os.getenv("TTS_MODEL", "bark")
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+GABRIEL_PHRASES = [
+    "TO STAND AGAINST ME IS TO BE DESTROYED!",
+    "I SERVE THE WILL OF THE HEAVENS.",
+    "I AM THE JUDGEMENT.",
+    "TREMBLE BEFORE DIVINE WRATH!",
+    "BLASPHEMER. REPENT.",
+    "YOU DARE SPEAK MY NAME IN VAIN?",
+    "THE MISSION. THE WORD. THE WILL.",
+]
+
 @bot.event
 async def on_ready():
     print(f"{bot.user} is online.", flush=True)
@@ -26,29 +36,26 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    await bot.process_commands(message)  # Allow commands to still work
+    await bot.process_commands(message)
 
     user = message.author
     user_id = str(user.id)
     content = message.content.strip().lower()
 
-    # Only run the AI if one of these is True
-    is_mentioned = bot.user in message.mentions
+    is_mentioned = bot.user in message.mentions or "gabriel" in content or "holy one" in content
     is_reply = (
         message.reference and
         isinstance(message.reference.resolved, discord.Message) and
         message.reference.resolved.author.id == bot.user.id
     )
-    random_chance = random.random() < 0.1
+    random_chance = random.random() < 0.075  # 7.5% random interjection
     tts_requested = content.startswith("!speak") or "[tts]" in content
 
-    # Ensure it only replies once, even if multiple triggers are True
     triggered = any([is_mentioned, is_reply, random_chance, tts_requested])
     if not triggered:
         return
 
     try:
-        # TTS override: if only tts is requested, don't add random message logic
         if tts_requested and not (is_mentioned or is_reply or random_chance):
             prompt = message.content.replace("!speak", "").replace("[tts]", "").strip()
         else:
@@ -79,7 +86,7 @@ async def on_message(message):
         full_prompt = prompt + media_description
 
         reply = get_ai_response(memory, full_prompt)
-        print(f"AI reply: {reply}", flush=True)
+        print(f"Gabriel says: {reply}", flush=True)
 
         update_user_memory(user_id, {"role": "user", "content": full_prompt})
         update_user_memory(user_id, {"role": "assistant", "content": reply})
@@ -114,14 +121,14 @@ async def nick(ctx, *, new_name):
 
 @bot.command()
 async def test(ctx):
-    await ctx.send("I'm alive and responding!")
+    await ctx.send(random.choice(GABRIEL_PHRASES))
 
-# Web ping
+# Web ping (Render compatibility)
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot is running!"
+    return "Gabriel is watching..."
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
